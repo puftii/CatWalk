@@ -44,7 +44,16 @@ Readme.cs
 *.hlsl
 *.physicMaterial
 *.fontsettings
+*.wav
+*.TGA
+*.tga
+*.cfxrshader
+*.pdf
+*.jpg
+*.ttf
+*.compute
 *.mesh
+*.psd
 *.txt
 *.inputactions
 *.mixer
@@ -68,6 +77,7 @@ Readme.cs
 *.pidb
 *.booproj
 *.svd
+*.exr
 *.pdb
 *.scene
 *.controller
