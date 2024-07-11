@@ -22,7 +22,6 @@ public class PlayerCombat : MonoBehaviour
     public int Skill = 0;
     public int SkillPoints = 0;
 
-    public TextMeshProUGUI healthText;
     public float Damage;
     public Transform AttackPoint;
     public float AttackRange;
@@ -31,6 +30,10 @@ public class PlayerCombat : MonoBehaviour
     private Rig _katanRig;
     private float katanWeight;
     private bool holster = false;
+
+    public static Action<float> damaged;
+
+
     void Start()
     {
         LoadPlayer();
@@ -40,7 +43,6 @@ public class PlayerCombat : MonoBehaviour
             _katanRig = KatanRig.GetComponent<Rig>();
         }
         _currentHealth = Health;
-        healthText.text = _currentHealth.ToString();
     }
 
     // Update is called once per frame
@@ -73,7 +75,8 @@ public class PlayerCombat : MonoBehaviour
     {
         //GetComponent<CharacterController>().Move(transform.position - hitDirection);
         _currentHealth -= damage;
-        healthText.text = _currentHealth.ToString();
+        
+        damaged?.Invoke(_currentHealth);
     }
     void OnDrawGizmosSelected()
     {
