@@ -8,19 +8,19 @@ public class HealthControlUI : MonoBehaviour
 {
     private void onEnable()
     {
-        PlayerCombat.damaged += ChangeHealth;
+
     }
 
     private void onDisable()
     {
-        PlayerCombat.damaged -= ChangeHealth;
+        EventManager.PlayerHealthChanged -= ChangeHealth;
     }
 
 
     // Start is called before the first frame update
     void Start()
     {
-
+        EventManager.PlayerHealthChanged += ChangeHealth;
     }
 
     // Update is called once per frame
@@ -31,7 +31,7 @@ public class HealthControlUI : MonoBehaviour
 
     private void ChangeHealth(float currentHealth)
     {
-        Console.WriteLine("Ударился");
+        Debug.Log("Ударился");
         GetComponent<TextMeshProUGUI>().text = currentHealth.ToString();
     }
 }

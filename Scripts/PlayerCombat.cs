@@ -1,9 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.Animations.Rigging;
-using TMPro;
 using System;
 
 
@@ -28,16 +26,11 @@ public class PlayerCombat : MonoBehaviour
     public LayerMask enemyLayers;
     public GameObject KatanRig;
     private Rig _katanRig;
-    private float katanWeight;
-    private bool holster = false;
-
-    public static Action<float> damaged;
 
 
     void Start()
     {
         LoadPlayer();
-        katanWeight = 0f;
         if (KatanRig != null)
         {
             _katanRig = KatanRig.GetComponent<Rig>();
@@ -76,7 +69,17 @@ public class PlayerCombat : MonoBehaviour
         //GetComponent<CharacterController>().Move(transform.position - hitDirection);
         _currentHealth -= damage;
         
-        damaged?.Invoke(_currentHealth);
+        EventManager.OnPlayerHealthChanged(_currentHealth);
+        if (_currentHealth <= 0f)
+        {
+            _currentHealth = 0f;
+            Die();
+        }
+    }
+
+    private void Die()
+    {
+
     }
     void OnDrawGizmosSelected()
     {
