@@ -6,10 +6,15 @@ using System;
 public class EventManager : MonoBehaviour
 {
     public static event Action<float> PlayerHealthChanged;
+    public static event Action PlayerDied;
 
     public static void OnPlayerHealthChanged(float currentHealth)
     {
         PlayerHealthChanged?.Invoke(currentHealth);
-        Debug.Log("Евент работает");
+    }
+
+    public static void OnPlayerDied() 
+    { 
+        PlayerDied?.Invoke();
     }
 }

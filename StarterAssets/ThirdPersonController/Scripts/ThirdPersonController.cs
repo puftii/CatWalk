@@ -1,7 +1,11 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
 using System.Collections.Generic;
 using Cinemachine.Utility;
 using UnityEngine.Animations.Rigging;
+using TMPro;
+using System;
 #if ENABLE_INPUT_SYSTEM 
 using UnityEngine.InputSystem;
 #endif
@@ -136,7 +140,20 @@ namespace StarterAssets
             }
         }
 
+        private void OnEnable()
+        {
+            EventManager.PlayerDied += Die;
+        }
 
+        private void OnDisable()
+        {
+            EventManager.PlayerDied -= Die;
+        }
+
+        void OnDestroy()
+        {
+            EventManager.PlayerDied -= Die;
+        }
         private void Awake()
         {
             // get a reference to our main camera
@@ -144,19 +161,31 @@ namespace StarterAssets
             {
                 _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             }
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         private void Start()
         {
+            EventManager.PlayerDied += Die;
             _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
             _hasAnimator = TryGetComponent(out _animator);
             _controller = GetComponent<CharacterController>();
             _input = GetComponent<StarterAssetsInputs>();
-            _bodies = GetComponentsInChildren<Rigidbody>();
+            try
+            {
+                _bodies = GetComponentsInChildren<Rigidbody>();
+                _animator = GetComponent<Animator>();
+            }
+            catch (ArgumentException e)
+            {
+                Debug.Log($"Ошибка: {e.Message}");
+            }
+
             foreach (Rigidbody body in _bodies)
             {
-                if(body.gameObject.layer != 8)
-                body.isKinematic = true;
+                if (body.gameObject.layer != 8)
+                    body.isKinematic = true;
             }
             freeze = true;
 #if ENABLE_INPUT_SYSTEM 
@@ -176,6 +205,10 @@ namespace StarterAssets
         private void Update()
         {
             _hasAnimator = TryGetComponent(out _animator);
+            if (_animator == null)
+            {
+                _animator = GetComponentInChildren<Animator>();
+            }
             GoDown();
             JumpAndGravity();
             GroundedCheck();
@@ -237,8 +270,8 @@ namespace StarterAssets
 
         private void Move()
         {
-            
-            
+
+
             // set target speed based on move speed, sprint speed and if sprint is pressed
             float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
 
@@ -252,7 +285,6 @@ namespace StarterAssets
             float currentHorizontalSpeed = new Vector3(_controller.velocity.x, 0.0f, _controller.velocity.z).magnitude;
 
             float speedOffset = 0.1f;
-            Debug.Log(_input.move.magnitude);
             float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
             //float inputMagnitude = _input.move.magnitude;
             // accelerate or decelerate to target speed
@@ -295,26 +327,23 @@ namespace StarterAssets
             Vector3 targetDirection = Quaternion.Euler(0.0f, _targetRotation, 0.0f) * Vector3.forward;
 
             // move the player
-            if(freeze)
+            if (_animator.GetCurrentAnimatorStateInfo(0).IsTag("Attack"))
             {
-                if (_animator.GetCurrentAnimatorStateInfo(0).IsTag("Attack"))
-                {
-                    _controller.Move(targetDirection.normalized * (_speed * AttackSpeed * Time.deltaTime) +
-                             new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+                _controller.Move(targetDirection.normalized * (_speed * AttackSpeed * Time.deltaTime) +
+                         new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
 
-                }
-                else
-                {
-                    _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
-                                 new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
-                }
             }
-            
+            else
+            {
+                _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
+                             new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+            }
+
 
             // update animator if using character
             if (_hasAnimator)
             {
-                
+
                 _animator.SetFloat(_animIDSpeed, _animationBlend);
                 _animator.SetFloat(_animIDMotionSpeed, inputMagnitude);
             }
@@ -348,7 +377,6 @@ namespace StarterAssets
             /*if (!GetComponent<Animator>().isActiveAndEnabled && spine != null)
             {
                 _input.ragdoll = false;
-
                 return;
             }*/
             _input.ragdoll = false;
@@ -356,12 +384,12 @@ namespace StarterAssets
 
         private void TimeScaler()
         {
-            if(_input.tactical1)
+            if (_input.tactical1)
             {
                 _animator.SetBool("KatanHolsted", _katanHolstered);
                 _animator.SetTrigger("Holster");
                 //katanRig.GetComponent<Rig>().weight = 1f;
-                
+
                 /*if(Time.timeScale >= 0.7f)
                 {
                     Time.timeScale = 0.1f;
@@ -376,7 +404,7 @@ namespace StarterAssets
         {
             if (_hasAnimator)
             {
-                
+
             }
             if (_input.attack)
             {
@@ -384,11 +412,11 @@ namespace StarterAssets
                 _animator.SetBool(_animIDAttack, true);
 
             }
-            if (_attackTimeoutDelta >= 0.00f) 
-                {
-                
+            if (_attackTimeoutDelta >= 0.00f)
+            {
+
                 _attackTimeoutDelta -= Time.deltaTime;
-                } 
+            }
             else
             {
                 if (_hasAnimator)
@@ -441,17 +469,7 @@ namespace StarterAssets
             Vector3 forward = transform.TransformDirection(Vector3.forward);
             _controller.SimpleMove(forward * AttackForwardSpeed * speed);
         }
-        void HolsterKatan(bool holster)
-        {
-            
-            /*if(holster)
-            {
-                _katanRig.weight = 1f;
-            } else
-            {
-                _katanRig.weight = 0f;
-            }*/
-        }
+
         private void JumpAndGravity()
         {
             if (Grounded)
@@ -521,6 +539,24 @@ namespace StarterAssets
             }
         }
 
+        private void Die()
+        {
+            if (_animator != null)
+            {
+                _animator.enabled = false;
+                transform.position = spine.transform.position;
+            }
+            foreach (Rigidbody body in _bodies)
+            {
+                body.isKinematic = false;
+                body.linearVelocity = _controller.velocity * 1;
+            }
+
+            _controller.enabled = false;
+            this.enabled = false;
+            Debug.Log("Сдох");
+        }
+
         private static float ClampAngle(float lfAngle, float lfMin, float lfMax)
         {
             if (lfAngle < -360f) lfAngle += 360f;
@@ -548,7 +584,7 @@ namespace StarterAssets
             {
                 if (FootstepAudioClips.Length > 0)
                 {
-                    var index = Random.Range(0, FootstepAudioClips.Length);
+                    var index = UnityEngine.Random.Range(0, FootstepAudioClips.Length);
                     AudioSource.PlayClipAtPoint(FootstepAudioClips[index], transform.TransformPoint(_controller.center), FootstepAudioVolume);
                 }
             }
@@ -558,7 +594,7 @@ namespace StarterAssets
             katanRig.GetComponent<Rig>().weight = 1f;
             if (animationEvent.animatorClipInfo.weight > 0.5f)
             {
-                
+
                 /*if (_katanHolstered)
                 {
                     katanRig.GetComponent<Rig>().weight = 0f;

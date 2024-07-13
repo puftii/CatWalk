@@ -30,7 +30,7 @@ public class PlayerCombat : MonoBehaviour
 
     void Start()
     {
-        LoadPlayer();
+        //LoadPlayer();
         if (KatanRig != null)
         {
             _katanRig = KatanRig.GetComponent<Rig>();
@@ -73,13 +73,14 @@ public class PlayerCombat : MonoBehaviour
         if (_currentHealth <= 0f)
         {
             _currentHealth = 0f;
+            EventManager.OnPlayerHealthChanged(_currentHealth);
             Die();
         }
     }
 
     private void Die()
     {
-
+        EventManager.OnPlayerDied();
     }
     void OnDrawGizmosSelected()
     {
