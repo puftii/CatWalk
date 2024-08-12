@@ -1,17 +1,23 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Animations.Rigging;
 using System;
 
 
-public class PlayerCombat : MonoBehaviour
+public class PlayerCombat : MonoBehaviour, IDamagable
 {
     // Start is called before the first frame update
-    public float Health;
-    public float _currentHealth;
-    public float Stamina;
-    public float _currentStamina;
+    [Header("Health Settings")]
+    public float MaxHealth;
+    public float CurrentHealth;
+
+    [Header("Stamina Settings")]
+    public float MaxStamina;
+    public float CurrentStamina;
+    public float StaminaCooldown;
+    public float StaminaRecoverSpeed = 30f;
+    public float DashStaminaCost = 30f;
+    private float _currentStaminaCooldown = 0f;
+
+    [Header("RPG")]
     public int Level = 0;
     public int Exp = 0;
     public int Strength = 0;
@@ -24,56 +30,107 @@ public class PlayerCombat : MonoBehaviour
     public Transform AttackPoint;
     public float AttackRange;
     public LayerMask enemyLayers;
-    public GameObject KatanRig;
-    private Rig _katanRig;
 
+
+    [Header("Impact Prefabs")]
+    public GameObject[] HitImpacts;
+
+    [Header("Audio Clips")]
+    public AudioClip[] swordWooshs;
 
     void Start()
     {
         //LoadPlayer();
-        if (KatanRig != null)
-        {
-            _katanRig = KatanRig.GetComponent<Rig>();
-        }
-        _currentHealth = Health;
+        CurrentHealth = MaxHealth;
+        CurrentStamina = MaxStamina;
     }
 
     // Update is called once per frame
     void Update()
     {
-        if(Input.GetButton("Tactical1"))
+        if (Input.GetButton("Tactical1"))
         {
             //SavePlayer();
         }
+        Stamina();
+
     }
 
     public void Attack()
     {
+        //play sound
+        if (swordWooshs.Length > 0)
+        {
+            int number = UnityEngine.Random.Range(0, swordWooshs.Length);
+            AudioSource.PlayClipAtPoint(swordWooshs[number], transform.position);
+        }
+
+        //Get enemies in sphere
         Collider[] hitEnemies = Physics.OverlapSphere(AttackPoint.position, AttackRange, enemyLayers);
-        if(hitEnemies.Length > 0)
+
+        //if Sphere have enemies, attacks them
+        if (hitEnemies.Length > 0)
         {
             foreach (Collider enemy in hitEnemies)
             {
-                if(enemy.GetComponent<EnemyStats>() != null)
+                if (enemy.TryGetComponent(out IDamagable damageable))
                 {
-                    enemy.GetComponent<EnemyStats>().GetHit(Damage);
+
+                    damageable.ApplyDamage(Damage);
+                    if (HitImpacts.Length > 0)
+                    {
+                        int number = UnityEngine.Random.Range(0, HitImpacts.Length);
+                        Instantiate(HitImpacts[number], AttackPoint.transform.position, AttackPoint.transform.rotation);
+                    }
                 }
-                
+
             }
         }
-        
+
     }
 
-    public void GetHit(float damage)
+    private void Stamina()
+    {
+        if (CurrentStamina < MaxStamina && _currentStaminaCooldown <= 0f)
+        {
+            CurrentStamina += Time.deltaTime * StaminaRecoverSpeed;
+            if (CurrentStamina > MaxStamina)
+            {
+                CurrentStamina = MaxStamina;
+            }
+        }
+        else
+        {
+            _currentStaminaCooldown -= Time.deltaTime;
+        }
+    }
+
+    public void ChangeStamina(float value)
+    {
+        CurrentStamina += value;
+
+        if (value < 0)
+        {
+            if (CurrentStamina <= 0f)
+            {
+                CurrentStamina = 0f;
+                return;
+            }
+            _currentStaminaCooldown = StaminaCooldown;
+
+        }
+    }
+
+    public void ApplyDamage (float damage) 
     {
         //GetComponent<CharacterController>().Move(transform.position - hitDirection);
-        _currentHealth -= damage;
-        
-        EventManager.OnPlayerHealthChanged(_currentHealth);
-        if (_currentHealth <= 0f)
+        CurrentHealth -= damage;
+
+        EventManager.OnPlayerHealthChanged(CurrentHealth);
+        if (CurrentHealth <= 0f)
         {
-            _currentHealth = 0f;
-            EventManager.OnPlayerHealthChanged(_currentHealth);
+            CurrentHealth = 0f;
+            EventManager.OnPlayerHealthChanged(CurrentHealth);
             Die();
         }
     }
@@ -84,7 +141,7 @@ public class PlayerCombat : MonoBehaviour
     }
     void OnDrawGizmosSelected()
     {
-        if(AttackPoint == null)
+        if (AttackPoint == null)
         {
             return;
         }
@@ -99,9 +156,9 @@ public class PlayerCombat : MonoBehaviour
     public void LoadPlayer()
     {
         PlayerData data = SaveSystem.LoadPlayer();
-        if(data != null)
+        if (data != null)
         {
-            _currentHealth = data.currentHealth;
+            CurrentHealth = data.currentHealth;
             Level = data.level;
             Exp = data.exp;
             Strength = data.strength;

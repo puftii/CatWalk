@@ -1,20 +1,24 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 using System;
 
 public class HealthControlUI : MonoBehaviour
 {
-    private Text _text;
+    private TMP_Text _text;
 
-    private void onEnable()
+    private void OnEnable()
     {
         EventManager.PlayerHealthChanged += ChangeHealth;
     }
 
-    private void onDisable()
+    private void OnDisable()
+    {
+        EventManager.PlayerHealthChanged -= ChangeHealth;
+    }
+
+    private void OnDestroy()
     {
         EventManager.PlayerHealthChanged -= ChangeHealth;
     }
@@ -24,8 +28,9 @@ public class HealthControlUI : MonoBehaviour
     {
         try
         {
-            _text = GetComponent<Text>();
-            Debug.Log("Текст найден");
+            _text = GetComponent<TMP_Text>();
+            PlayerCombat playerCombat = (PlayerCombat)FindFirstObjectByType(typeof(PlayerCombat));
+            ChangeHealth(playerCombat.CurrentHealth);
         }
         catch (ArgumentException e)
         {
@@ -49,7 +54,7 @@ public class HealthControlUI : MonoBehaviour
     {
         if (_text != null)
         {
-            GetComponent<Text>().text = currentHealth.ToString();
+            _text.text = currentHealth.ToString();
         }
     }
 }

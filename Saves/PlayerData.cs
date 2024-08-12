@@ -18,7 +18,7 @@ public class PlayerData
     {
         exp = Player.Exp;
         level = Player.Level;
-        currentHealth = Player._currentHealth;
+        currentHealth = Player.CurrentHealth;
         exp = Player.Exp;
         strength = Player.Strength;
         speed = Player.Speed;

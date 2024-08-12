@@ -13,9 +13,9 @@ namespace StarterAssets
 		public bool jump;
 		public bool sprint;
 		public bool attack;
-		public bool ragdoll;
 		public bool tactical1;
-		public float cameraZoom;
+        public bool tactical2;
+        public float cameraZoom;
 
 		[Header("Movement Settings")]
 		public bool analogMovement;
@@ -51,9 +51,9 @@ namespace StarterAssets
 		{
 			AttackInput(value.isPressed);
 		}
-		public void OnRagdoll(InputValue value)
+		public void OnTactical2(InputValue value)
 		{
-			RagdollInput(value.isPressed);
+			Tactical2Input(value.isPressed);
 		}
 		public void OnCameraZoom(InputValue value)
 		{
@@ -91,9 +91,9 @@ namespace StarterAssets
             attack = newAttackState;
         }
 
-        public void RagdollInput(bool newRagdollState)
+        public void Tactical2Input(bool newTactical2State)
         {
-            ragdoll = newRagdollState;
+            tactical2 = newTactical2State;
         }
 
         public void CameraZoomInput(float newCameraZoomState)

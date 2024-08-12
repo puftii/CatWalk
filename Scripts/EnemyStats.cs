@@ -5,7 +5,7 @@ using UnityEngine.AI;
 using UnityEngine.UI;
 using UnityEngine.Animations.Rigging;
 using TMPro;
-public class EnemyStats : MonoBehaviour
+public class EnemyStats : MonoBehaviour, IDamagable
 {
 
     public float Health = 100f;
@@ -22,18 +22,27 @@ public class EnemyStats : MonoBehaviour
     public LayerMask attackLayers;
     public TextMeshProUGUI healthText;
     public GameObject healthSlider;
-    private Slider _healthSlider;
     public GameObject BloodSample;
     public GameObject AttackParticle;
+    public Renderer Mesh;
+    private Material _material;
+    [Header("Audio Clips")]
+
+    public AudioClip[] BloodClips;
+    [Range(0, 1)] public float HitAudioVolume = 0.5f;
+
+    private Slider _healthSlider;
     private NavMeshAgent _agent;
     private Animator _animator;
     public float _currentAttackCooldown = 0f;
     private bool dying = false;
     private Rigidbody[] _bodies;
+    private int _totalBodies;
     // Start is called before the first frame update
     void Start()
     {
         _agent = GetComponent<NavMeshAgent>();
+        _material = Mesh.material;
         _healthSlider = healthSlider.GetComponent<Slider>();
         _animator = GetComponent<Animator>();
         _currentHealth = Health;
@@ -41,6 +50,7 @@ public class EnemyStats : MonoBehaviour
         _healthSlider.maxValue = Health;
         _healthSlider.value = _currentHealth;
         _bodies = GetComponentsInChildren<Rigidbody>();
+        _totalBodies = _bodies.Length;
         foreach (Rigidbody body in _bodies)
         {
             body.isKinematic = true;
@@ -69,26 +79,36 @@ public class EnemyStats : MonoBehaviour
         _animator.SetFloat("Speed", _agent.velocity.magnitude);
     }
 
-    public void GetHit(float damage)
+    public void ApplyDamage (float damage) 
     {
         _currentHealth -= damage;
-        if (healthText != null) 
+        if (healthText != null)
         {
             healthText.text = _currentHealth.ToString();
         }
         _healthSlider.value = _currentHealth;
-        Vector3 position = new Vector3(this.transform.position.x, this.transform.position.y + 1.6f, this.transform.position.z); //other.transform.position;
+        Vector3 position = this.transform.position; //other.transform.position;
         Quaternion rotation = this.transform.rotation;
-        Vector3 test = new Vector3(Random.Range(0,360), 0, Random.Range(0, 360));
+        Vector3 test = new Vector3(0, Random.Range(0, 360), 0);
         rotation.eulerAngles = test;//other.transform.rotation;
-        GameObject blood = Instantiate(BloodSample, position, rotation);
-        Debug.Log("Gets Hit");
+        Transform bodyPart = this.transform;
+        if (_bodies.Length > 0)
+        {
+            bodyPart = _bodies[Random.Range(0, _bodies.Length)].transform;
+        }
+        GameObject blood = Instantiate(BloodSample, bodyPart.position, rotation, bodyPart);
+        if (BloodClips.Length > 0)
+        {
+            int number = Random.Range(0, BloodClips.Length);
+            AudioSource.PlayClipAtPoint(BloodClips[number], transform.position, HitAudioVolume);
+        }
+
         if (_currentHealth <= 0f)
         {
             Die();
             return;
         }
-        if (damage > _currentHealth / 10)
+        if (damage > _currentHealth / 3)
         {
             _animator.SetTrigger("Stun");
         }
@@ -99,7 +119,8 @@ public class EnemyStats : MonoBehaviour
         //this.GetComponent<Rigidbody>().isKinematic = false;
         Destroy(this.GetComponent<CapsuleCollider>());
         Destroy(healthSlider);
-
+        StartCoroutine(StartDissolve());
+        //_material.SetFloat("Dissolve", 0.5f);
         _animator.enabled = !_animator.enabled;
         _animator.SetTrigger("Die");
         foreach (Rigidbody body in _bodies)
@@ -131,7 +152,6 @@ public class EnemyStats : MonoBehaviour
                 {
                     _animator.SetTrigger("Attack");
                     _agent.ResetPath();
-                    transform.LookAt(enemy.transform.position);
                 }
             }
         }
@@ -152,13 +172,23 @@ public class EnemyStats : MonoBehaviour
         _currentAttackCooldown = AttackCooldown;
         foreach(Collider hit in hits)
         {
-            if(hit.GetComponent<PlayerCombat>() != null)
+            if(hit.TryGetComponent(out IDamagable damagable))
             {
-                hit.GetComponent<PlayerCombat>().GetHit(Mathf.Round(Damage * multiplier));
+                damagable.ApplyDamage(Mathf.Round(Damage * multiplier));
+                GameObject groundSlash = Instantiate(AttackParticle, HitPosition.position, HitPosition.rotation);
             }
         }
-        Vector3 slashPosition = new Vector3(HitPosition.position.x, HitPosition.position.y - 1f, HitPosition.position.z + 1f);
-        GameObject groundSlash = Instantiate(AttackParticle, slashPosition, HitPosition.rotation);
+        
         _currentAttackCooldown = AttackCooldown;
+    }
+
+
+
+    IEnumerator StartDissolve()
+    {
+        while (_material.GetFloat("Dissolve") < 1f) {
+            _material.SetFloat("Dissolve", _material.GetFloat("Dissolve") + dyingTime * Time.deltaTime);
+            yield return new WaitForSeconds(.1f);
+        }
     }
 }

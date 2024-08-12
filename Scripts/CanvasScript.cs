@@ -6,19 +6,18 @@ using TMPro;
 
 public class CanvasScript : MonoBehaviour
 {
-
     private GameObject _mainCamera;
     void Awake()
+    {
+        
+    }
+    // Start is called before the first frame update
+    void Start()
     {
         if (_mainCamera == null)
         {
             _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
         }
-    }
-    // Start is called before the first frame update
-    void Start()
-    {
-        
     }
 
     // Update is called once per frame

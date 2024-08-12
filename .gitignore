@@ -35,12 +35,16 @@ ExportedObj/
 Readme.cs
 *.csproj
 *.mat
+*.preset
 *.cubemap
 *.unityproj
 *.terrainlayer
+*.tiff
+*.brush
 *.prefab
 *.shader
 *.shadergraph
+*.shadersubgraph
 *.hlsl
 *.physicMaterial
 *.fontsettings

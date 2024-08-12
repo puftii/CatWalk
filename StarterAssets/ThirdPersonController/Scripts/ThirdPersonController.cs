@@ -55,7 +55,6 @@ namespace StarterAssets
         public float AttackTimeout = 0.15f;
         public float AttackSpeed = 1f;
         public float AttackForwardSpeed = 3f;
-        public GameObject katanRig;
         public GameObject spine;
 
         [Header("Player Grounded")]
@@ -120,9 +119,8 @@ namespace StarterAssets
         private CharacterController _controller;
         private StarterAssetsInputs _input;
         private GameObject _mainCamera;
+        private PlayerCombat _playerCombat;
         private Rigidbody[] _bodies;
-        private bool freeze;
-        private bool _katanHolstered = true;
 
         private const float _threshold = 0.01f;
 
@@ -176,6 +174,7 @@ namespace StarterAssets
             {
                 _bodies = GetComponentsInChildren<Rigidbody>();
                 _animator = GetComponent<Animator>();
+                _playerCombat = GetComponent<PlayerCombat>();
             }
             catch (ArgumentException e)
             {
@@ -187,7 +186,6 @@ namespace StarterAssets
                 if (body.gameObject.layer != 8)
                     body.isKinematic = true;
             }
-            freeze = true;
 #if ENABLE_INPUT_SYSTEM 
             _playerInput = GetComponent<PlayerInput>();
 #else
@@ -273,8 +271,9 @@ namespace StarterAssets
 
 
             // set target speed based on move speed, sprint speed and if sprint is pressed
-            float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
-
+            bool sprinting = _input.sprint && (_playerCombat.CurrentStamina > 0.3f);
+            float targetSpeed = sprinting ? SprintSpeed : MoveSpeed;
+            
             // a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
 
             // note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
@@ -286,6 +285,12 @@ namespace StarterAssets
 
             float speedOffset = 0.1f;
             float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
+
+            if (targetSpeed > MoveSpeed && _playerCombat.CurrentStamina > 0.3f && inputMagnitude > 0.3f)
+            {
+                _playerCombat.ChangeStamina(-Time.deltaTime * 30f);
+            }
+
             //float inputMagnitude = _input.move.magnitude;
             // accelerate or decelerate to target speed
             if (currentHorizontalSpeed < targetSpeed - speedOffset ||
@@ -312,7 +317,7 @@ namespace StarterAssets
 
             // note: Vector2's != operator uses approximation so is not floating point error prone, and is cheaper than magnitude
             // if there is a move input rotate player when the player is moving
-            if (_input.move != Vector2.zero && freeze)
+            if (_input.move != Vector2.zero)
             {
                 _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg +
                                   _mainCamera.transform.eulerAngles.y;
@@ -350,7 +355,7 @@ namespace StarterAssets
         }
         private void GoDown()
         {
-            if (_input.ragdoll)
+            if (_input.tactical2 && _playerCombat.CurrentStamina >= _playerCombat.DashStaminaCost)
             {
                 _animator.SetTrigger("Dash");
                 /*if (GetComponent<Animator>().enabled == false)
@@ -379,14 +384,13 @@ namespace StarterAssets
                 _input.ragdoll = false;
                 return;
             }*/
-            _input.ragdoll = false;
+            _input.tactical2 = false;
         }
 
         private void TimeScaler()
         {
             if (_input.tactical1)
             {
-                _animator.SetBool("KatanHolsted", _katanHolstered);
                 _animator.SetTrigger("Holster");
                 //katanRig.GetComponent<Rig>().weight = 1f;
 
@@ -468,6 +472,13 @@ namespace StarterAssets
         {
             Vector3 forward = transform.TransformDirection(Vector3.forward);
             _controller.SimpleMove(forward * AttackForwardSpeed * speed);
+        }
+
+        void Dash()
+        {
+            Vector3 forward = transform.TransformDirection(Vector3.forward);
+            _controller.SimpleMove(forward * AttackForwardSpeed * 25);
+            _playerCombat.ChangeStamina(-_playerCombat.DashStaminaCost);
         }
 
         private void JumpAndGravity()
@@ -587,23 +598,6 @@ namespace StarterAssets
                     var index = UnityEngine.Random.Range(0, FootstepAudioClips.Length);
                     AudioSource.PlayClipAtPoint(FootstepAudioClips[index], transform.TransformPoint(_controller.center), FootstepAudioVolume);
                 }
-            }
-        }
-        private void OnHolsterKatan(AnimationEvent animationEvent)
-        {
-            katanRig.GetComponent<Rig>().weight = 1f;
-            if (animationEvent.animatorClipInfo.weight > 0.5f)
-            {
-
-                /*if (_katanHolstered)
-                {
-                    katanRig.GetComponent<Rig>().weight = 0f;
-                    _katanHolstered = false;
-                } else
-                {
-                    katanRig.GetComponent<Rig>().weight = 1f;
-                    _katanHolstered = true;
-                }*/
             }
         }
         private void OnLand(AnimationEvent animationEvent)
