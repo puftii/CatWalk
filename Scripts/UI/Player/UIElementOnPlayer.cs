@@ -18,7 +18,7 @@ public class UIElementOnPlayer : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        _player = transform.root.gameObject;
+        _player = GameObject.Find("PlayerArmature");
     }
 
     // Update is called once per frame

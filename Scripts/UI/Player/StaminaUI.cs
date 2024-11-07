@@ -8,13 +8,28 @@ public class StaminaUI : MonoBehaviour
 
     private Slider _staminaBar;
 
+    private void OnEnable()
+    {
+        EventManager.PlayerStaminaChanged += ChangeStamina;
+    }
+
+    private void OnDisable()
+    {
+        EventManager.PlayerStaminaChanged -= ChangeStamina;
+    }
+
+    private void OnDestroy()
+    {
+        EventManager.PlayerStaminaChanged -= ChangeStamina;
+    }
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         try
         {
             _staminaBar = GetComponent<Slider>();
-            _player = transform.root.gameObject;
+            _player = GameObject.Find("PlayerArmature");
         }
         catch (ArgumentException e)
         {
@@ -26,7 +41,7 @@ public class StaminaUI : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        ValuesChange();
+        //ValuesChange();
     }
 
     void ValuesChange()
@@ -35,6 +50,14 @@ public class StaminaUI : MonoBehaviour
         {
             _staminaBar.maxValue = _player.GetComponent<PlayerCombat>().MaxStamina;
             _staminaBar.value = _player.GetComponent<PlayerCombat>().CurrentStamina;
+        }
+    }
+
+    void ChangeStamina(float currentStamina)
+    {
+        if (_staminaBar != null)
+        {
+            _staminaBar.value = currentStamina;
         }
     }
 }

@@ -6,7 +6,11 @@ using Cinemachine.Utility;
 using UnityEngine.Animations.Rigging;
 using TMPro;
 using System;
-#if ENABLE_INPUT_SYSTEM 
+using Cinemachine;
+using SmallHedge.SoundManager;
+
+
+#if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
 
@@ -39,6 +43,12 @@ namespace StarterAssets
         public AudioClip[] FootstepAudioClips;
         [Range(0, 1)] public float FootstepAudioVolume = 0.5f;
 
+        public AudioClip[] WaterSplashAudioClips;
+        [Range(0, 1)] public float WaterSplashAudioVolume = 0.5f;
+        public GameObject WaterSplash;
+
+        public GameObject PoofEffect;
+
         [Space(10)]
         [Tooltip("The height the player can jump")]
         public float JumpHeight = 1.2f;
@@ -56,10 +66,12 @@ namespace StarterAssets
         public float AttackSpeed = 1f;
         public float AttackForwardSpeed = 3f;
         public GameObject spine;
+        public LayerMask enemyLayers;
 
         [Header("Player Grounded")]
         [Tooltip("If the character is grounded or not. Not part of the CharacterController built in grounded check")]
         public bool Grounded = true;
+        public bool Watered = false;
         public bool Attack = false;
 
         [Tooltip("Useful for rough ground")]
@@ -70,6 +82,7 @@ namespace StarterAssets
 
         [Tooltip("What layers the character uses as ground")]
         public LayerMask GroundLayers;
+        public LayerMask WaterLayers;
 
         [Header("Cinemachine")]
         [Tooltip("The follow target set in the Cinemachine Virtual Camera that the camera will follow")]
@@ -87,11 +100,16 @@ namespace StarterAssets
         [Tooltip("For locking the camera position on all axis")]
         public bool LockCameraPosition = false;
 
+        public CinemachineVirtualCamera CinemachineCamera;
+
         // cinemachine
         private float _cinemachineTargetYaw;
         private float _cinemachineTargetPitch;
 
         // player
+
+        private bool _block;
+
         private float _speed;
         private float _animationBlend;
         private float _targetRotation = 0.0f;
@@ -212,7 +230,15 @@ namespace StarterAssets
             GroundedCheck();
             Move();
             Fight();
-            TimeScaler();
+            Block();
+            //TimeScaler();
+            ChangeCamera();
+
+            /*if(_input.tactical1)
+            {
+                _animator.SetTrigger("Tactical1");
+                _input.tactical1 = false;
+            }*/
         }
 
         private void LateUpdate()
@@ -237,11 +263,13 @@ namespace StarterAssets
                 transform.position.z);
             Grounded = Physics.CheckSphere(spherePosition, GroundedRadius, GroundLayers,
                 QueryTriggerInteraction.Ignore);
-
+            Watered = Physics.CheckSphere(spherePosition, GroundedRadius, WaterLayers,
+                QueryTriggerInteraction.Ignore);
             // update animator if using character
             if (_hasAnimator)
             {
                 _animator.SetBool(_animIDGrounded, Grounded);
+                _animator.SetBool("Watered", Watered);
             }
         }
 
@@ -271,9 +299,9 @@ namespace StarterAssets
 
 
             // set target speed based on move speed, sprint speed and if sprint is pressed
-            bool sprinting = _input.sprint && (_playerCombat.CurrentStamina > 0.3f);
+            bool sprinting = _input.sprint && (_playerCombat.CurrentStamina > 1f);
             float targetSpeed = sprinting ? SprintSpeed : MoveSpeed;
-            
+
             // a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
 
             // note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
@@ -286,9 +314,10 @@ namespace StarterAssets
             float speedOffset = 0.1f;
             float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
 
-            if (targetSpeed > MoveSpeed && _playerCombat.CurrentStamina > 0.3f && inputMagnitude > 0.3f)
+            if (targetSpeed > MoveSpeed && _playerCombat.CurrentStamina > 1f && inputMagnitude > 0.3f)
             {
                 _playerCombat.ChangeStamina(-Time.deltaTime * 30f);
+                EventManager.OnPlayerWeaponHolstered(true);
             }
 
             //float inputMagnitude = _input.move.magnitude;
@@ -355,43 +384,42 @@ namespace StarterAssets
         }
         private void GoDown()
         {
-            if (_input.tactical2 && _playerCombat.CurrentStamina >= _playerCombat.DashStaminaCost)
+            /*if (GetComponent<Animator>().enabled == false)
             {
-                _animator.SetTrigger("Dash");
-                /*if (GetComponent<Animator>().enabled == false)
-                {
-                    transform.position = spine.transform.position;
-                }
-                freeze = !freeze;
-                foreach (Rigidbody body in _bodies)
-                {
-                    body.isKinematic = freeze;
-                    if (!freeze && body.gameObject.layer != 8)
-                    {
-                        body.velocity = _controller.velocity * 1;
-                    }
-                }
-                
-                _controller.enabled = !_controller.enabled;
-
-
-                GetComponent<Animator>().enabled = !GetComponent<Animator>().enabled;
-
-                Debug.Log("Pizda");*/
+                transform.position = spine.transform.position;
             }
+            freeze = !freeze;
+            foreach (Rigidbody body in _bodies)
+            {
+                body.isKinematic = freeze;
+                if (!freeze && body.gameObject.layer != 8)
+                {
+                    body.velocity = _controller.velocity * 1;
+                }
+            }
+
+            _controller.enabled = !_controller.enabled;
+
+
+            GetComponent<Animator>().enabled = !GetComponent<Animator>().enabled;
+
+            Debug.Log("Pizda");*/
             /*if (!GetComponent<Animator>().isActiveAndEnabled && spine != null)
             {
                 _input.ragdoll = false;
                 return;
             }*/
-            _input.tactical2 = false;
         }
 
+        private void Block()
+        {
+             _block = _input.block;
+            _animator.SetBool("Block", _block);
+        }
         private void TimeScaler()
         {
             if (_input.tactical1)
             {
-                _animator.SetTrigger("Holster");
                 //katanRig.GetComponent<Rig>().weight = 1f;
 
                 /*if(Time.timeScale >= 0.7f)
@@ -406,19 +434,15 @@ namespace StarterAssets
         }
         private void Fight()
         {
-            if (_hasAnimator)
+            if (_input.attack && _speed <= MoveSpeed)
             {
-
-            }
-            if (_input.attack)
-            {
+                EventManager.OnPlayerWeaponHolstered(false);
                 _attackTimeoutDelta = AttackTimeout;
                 _animator.SetBool(_animIDAttack, true);
 
             }
             if (_attackTimeoutDelta >= 0.00f)
             {
-
                 _attackTimeoutDelta -= Time.deltaTime;
             }
             else
@@ -428,7 +452,6 @@ namespace StarterAssets
                     _animator.SetBool(_animIDAttack, false);
                 }
             }
-            _input.attack = false;
             /*if (!Attack)
             {
                 _attackTimeoutDelta = AttackTimeout;
@@ -471,14 +494,13 @@ namespace StarterAssets
         void AttackDash(float speed)
         {
             Vector3 forward = transform.TransformDirection(Vector3.forward);
-            _controller.SimpleMove(forward * AttackForwardSpeed * speed);
+            _controller.Move(forward * AttackForwardSpeed * speed * Time.deltaTime);
         }
 
-        void Dash()
+        public void Dash()
         {
             Vector3 forward = transform.TransformDirection(Vector3.forward);
-            _controller.SimpleMove(forward * AttackForwardSpeed * 25);
-            _playerCombat.ChangeStamina(-_playerCombat.DashStaminaCost);
+            _controller.SimpleMove(forward * AttackForwardSpeed * 15);
         }
 
         private void JumpAndGravity()
@@ -504,6 +526,7 @@ namespace StarterAssets
                 // Jump
                 if (_input.jump && _jumpTimeoutDelta <= 0.0f)
                 {
+                    //EventManager.OnPlayerWeaponHolstered(true);
                     // the square root of H * -2 * G = how much velocity needed to reach desired height
                     _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
 
@@ -568,6 +591,59 @@ namespace StarterAssets
             Debug.Log("Сдох");
         }
 
+        private void ChangeCamera()
+        {
+            if (_input.lockTarget)
+            {
+                Debug.Log("Popa");
+                if (CinemachineCamera.LookAt != null)
+                {
+                    CinemachineCamera.LookAt = null;
+
+                }
+                else
+                {
+                    Collider[] hitEnemies = Physics.OverlapSphere(transform.position, 15f, enemyLayers);
+                    
+                    if (hitEnemies.Length > 0)
+                    {
+                        //TPToNearestEnemy(hitEnemies[0].gameObject);
+                        /*Vector3 centerHint = new Vector3((hitEnemies[0].transform.position.x + transform.position.x) / 2, (hitEnemies[0].transform.position.y + transform.position.y) / 2, (hitEnemies[0].transform.position.z + transform.position.z) / 2);
+                        GameObject center = new GameObject("centerHint");
+                        center.transform.position = centerHint;
+                        CinemachineCamera.LookAt = hitEnemies[0].transform;*/
+                        //CameraLookingAtEnemy(hitEnemies[0].gameObject, center);
+                    }
+                }
+
+                _input.lockTarget = false;
+            }
+        }
+
+        IEnumerator CameraLookingAtEnemy(GameObject enemy, GameObject center)
+        {
+            while (CinemachineCamera.LookAt != null && enemy != null)
+            {
+                Vector3 centerHint = new Vector3((enemy.transform.position.x + transform.position.x) / 2, (enemy.transform.position.y + transform.position.y) / 2, (enemy.transform.position.z + transform.position.z) / 2);
+                center.transform.position = centerHint;
+                yield return new WaitForSeconds(0.02f);
+            }
+            CinemachineCamera.LookAt = null;
+            Destroy(center);
+            
+
+
+        }
+
+        public void TPToNearestEnemy(GameObject enemy) 
+        {
+            GameObject poof = Instantiate(PoofEffect, transform.position, Quaternion.Euler(Vector3.zero));
+            transform.position = enemy.transform.position + (enemy.transform.position - transform.position)/ Vector3.Distance(enemy.transform.position, transform.position);
+            transform.position = new Vector3(transform.position.x, enemy.transform.position.y, transform.position.z);
+            transform.LookAt(enemy.transform.position);
+            //transform.rotation = Quaternion.Euler(0, transform.rotation.y, 0);
+        }
+
         private static float ClampAngle(float lfAngle, float lfMin, float lfMax)
         {
             if (lfAngle < -360f) lfAngle += 360f;
@@ -593,19 +669,36 @@ namespace StarterAssets
         {
             if (animationEvent.animatorClipInfo.weight > 0.5f)
             {
-                if (FootstepAudioClips.Length > 0)
+                SoundManager.PlaySound(SoundType.FOOTSTEP);
+            }
+        }
+
+        private void OnWaterstep(AnimationEvent animationEvent)
+        {
+            if (animationEvent.animatorClipInfo.weight > 0.5f)
+            {
+                SoundManager.PlaySound(SoundType.WATERSPLASH);
+                /*if (WaterSplashAudioClips.Length > 0)
                 {
-                    var index = UnityEngine.Random.Range(0, FootstepAudioClips.Length);
-                    AudioSource.PlayClipAtPoint(FootstepAudioClips[index], transform.TransformPoint(_controller.center), FootstepAudioVolume);
-                }
+                    var index = UnityEngine.Random.Range(0, WaterSplashAudioClips.Length);
+                    AudioSource.PlayClipAtPoint(WaterSplashAudioClips[index], 
+                        transform.TransformPoint(_controller.center), WaterSplashAudioVolume);
+                    var position = transform.position;
+                    position.y += 1.1f;
+                    var rotation = transform.rotation;
+                    rotation.z = 90f;
+                    Instantiate(WaterSplash, position, WaterSplash.transform.rotation);
+                }*/
             }
         }
         private void OnLand(AnimationEvent animationEvent)
         {
             if (animationEvent.animatorClipInfo.weight > 0.5f)
             {
-                AudioSource.PlayClipAtPoint(LandingAudioClip, transform.TransformPoint(_controller.center), FootstepAudioVolume);
+                SoundManager.PlaySound(SoundType.LANDING);
+                //AudioSource.PlayClipAtPoint(LandingAudioClip, transform.TransformPoint(_controller.center), FootstepAudioVolume);
             }
         }
+
     }
 }

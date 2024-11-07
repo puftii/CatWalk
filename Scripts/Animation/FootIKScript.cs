@@ -48,7 +48,7 @@ public class FootIKScript : MonoBehaviour
                     Vector3 footPosition = hit.point; // The target foot position is where the raycast hit a walkable object...
                     footPosition.y += DistanceToGround; // ... taking account the distance to the ground we added above.
                     anim.SetIKPosition(AvatarIKGoal.LeftFoot, footPosition);
-                    anim.SetIKRotation(AvatarIKGoal.LeftFoot, Quaternion.LookRotation(transform.forward, hit.normal));
+                    //anim.SetIKRotation(AvatarIKGoal.LeftFoot, Quaternion.LookRotation(transform.forward, hit.normal));
 
                 }
 
@@ -65,7 +65,7 @@ public class FootIKScript : MonoBehaviour
                     Vector3 footPosition = hit.point;
                     footPosition.y += DistanceToGround;
                     anim.SetIKPosition(AvatarIKGoal.RightFoot, footPosition);
-                    anim.SetIKRotation(AvatarIKGoal.RightFoot, Quaternion.LookRotation(transform.forward, hit.normal));
+                    //anim.SetIKRotation(AvatarIKGoal.RightFoot, Quaternion.LookRotation(transform.forward, hit.normal));
 
                 }
 

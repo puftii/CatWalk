@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using SmallHedge.SoundManager;
 
 
 public class PlayerCombat : MonoBehaviour, IDamagable
@@ -8,6 +9,9 @@ public class PlayerCombat : MonoBehaviour, IDamagable
     [Header("Health Settings")]
     public float MaxHealth;
     public float CurrentHealth;
+    public float HealthRecoverCooldown;
+    public float HealthRecoverSpeed;
+    private float _currentHealthRecoverCooldown;
 
     [Header("Stamina Settings")]
     public float MaxStamina;
@@ -18,12 +22,12 @@ public class PlayerCombat : MonoBehaviour, IDamagable
     private float _currentStaminaCooldown = 0f;
 
     [Header("RPG")]
-    public int Level = 0;
+    [Range(0, 50)] public int Level = 0;
     public int Exp = 0;
-    public int Strength = 0;
-    public int Speed = 0;
-    public int Endurance = 0;
-    public int Skill = 0;
+    [Range(0, 20)] public int Strength = 0;
+    [Range(0, 20)] public int Speed = 0;
+    [Range(0, 20)] public int Endurance = 0;
+    [Range(0, 20)] public int Skill = 0;
     public int SkillPoints = 0;
 
     public float Damage;
@@ -35,8 +39,14 @@ public class PlayerCombat : MonoBehaviour, IDamagable
     [Header("Impact Prefabs")]
     public GameObject[] HitImpacts;
 
+    public GameObject[] HurtImpacts;
+
     [Header("Audio Clips")]
     public AudioClip[] swordWooshs;
+
+    [Range(0, 1)] public float SwordWhooshVolume = 0.5f;
+    public AudioClip[] HurtClips;
+    [Range(0,1)] public float HurtClipsVolume = 0.5f;
 
     void Start()
     {
@@ -53,17 +63,13 @@ public class PlayerCombat : MonoBehaviour, IDamagable
             //SavePlayer();
         }
         Stamina();
-
+        Health();
     }
 
     public void Attack()
     {
         //play sound
-        if (swordWooshs.Length > 0)
-        {
-            int number = UnityEngine.Random.Range(0, swordWooshs.Length);
-            AudioSource.PlayClipAtPoint(swordWooshs[number], transform.position);
-        }
+        SoundManager.PlaySound(SoundType.SWORDWHOOSH);
 
         //Get enemies in sphere
         Collider[] hitEnemies = Physics.OverlapSphere(AttackPoint.position, AttackRange, enemyLayers);
@@ -76,7 +82,8 @@ public class PlayerCombat : MonoBehaviour, IDamagable
                 if (enemy.TryGetComponent(out IDamagable damageable))
                 {
 
-                    damageable.ApplyDamage(Damage);
+                    damageable.ApplyDamage(Damage, DamageType.Physical, this.gameObject);
+
                     if (HitImpacts.Length > 0)
                     {
                         int number = UnityEngine.Random.Range(0, HitImpacts.Length);
@@ -94,9 +101,12 @@ public class PlayerCombat : MonoBehaviour, IDamagable
         if (CurrentStamina < MaxStamina && _currentStaminaCooldown <= 0f)
         {
             CurrentStamina += Time.deltaTime * StaminaRecoverSpeed;
+            EventManager.OnPlayerStaminaChanged(CurrentStamina);
+
             if (CurrentStamina > MaxStamina)
             {
                 CurrentStamina = MaxStamina;
+                EventManager.OnPlayerStaminaChanged(CurrentStamina);
             }
         }
         else
@@ -105,28 +115,62 @@ public class PlayerCombat : MonoBehaviour, IDamagable
         }
     }
 
+    private void Health()
+    {
+        if (CurrentHealth < MaxHealth && _currentHealthRecoverCooldown <= 0f)
+        {
+            CurrentHealth += HealthRecoverSpeed * Time.deltaTime;
+            if (CurrentHealth > MaxHealth) 
+            { 
+                CurrentHealth = MaxHealth;
+            }
+            EventManager.OnPlayerHealthChanged(CurrentHealth);
+        }
+        if (_currentHealthRecoverCooldown > 0f) 
+        {
+            _currentHealthRecoverCooldown -= Time.deltaTime;
+        }
+    }
     public void ChangeStamina(float value)
     {
         CurrentStamina += value;
+        
 
         if (value < 0)
         {
             if (CurrentStamina <= 0f)
             {
                 CurrentStamina = 0f;
-                return;
+                //return;
             }
             _currentStaminaCooldown = StaminaCooldown;
 
         }
+        EventManager.OnPlayerStaminaChanged(CurrentStamina);
     }
 
-    public void ApplyDamage (float damage) 
+    public void ApplyDamage (float damage, DamageType damageType, GameObject damager) 
     {
         //GetComponent<CharacterController>().Move(transform.position - hitDirection);
         CurrentHealth -= damage;
-
+        _currentHealthRecoverCooldown = HealthRecoverCooldown;
         EventManager.OnPlayerHealthChanged(CurrentHealth);
+
+        if(HurtImpacts.Length > 0)
+        {
+            int number = UnityEngine.Random.Range(0, HurtImpacts.Length);
+            Vector3 position = transform.position;
+            position.y += 1f;
+            Instantiate(HurtImpacts[number], position, transform.rotation);
+        }
+
+        SoundManager.PlaySound(SoundType.PLAYERHURT);
+        /*if (HurtClips.Length > 0)
+        {
+            int number = UnityEngine.Random.Range(0, HurtClips.Length);
+            AudioSource.PlayClipAtPoint(HurtClips[number], transform.position, HurtClipsVolume);
+        }*/
+
         if (CurrentHealth <= 0f)
         {
             CurrentHealth = 0f;
@@ -146,6 +190,25 @@ public class PlayerCombat : MonoBehaviour, IDamagable
             return;
         }
         Gizmos.DrawWireSphere(AttackPoint.position, AttackRange);
+    }
+
+    public void AddSkillPoint(int AttributeIndex)
+    {
+        if (AttributeIndex == 1) {
+            if (Strength > 20)
+            {
+                Debug.Log("Unable to improve that skill");
+            }
+            else 
+            {
+                Strength += 1;
+            }
+        }
+    }
+
+    public void RecalculateStats()
+    {
+
     }
 
     public void SavePlayer()
@@ -173,4 +236,6 @@ public class PlayerCombat : MonoBehaviour, IDamagable
             transform.position = position;
         }
     }
+
+    
 }
