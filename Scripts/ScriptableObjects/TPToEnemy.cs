@@ -1,18 +1,17 @@
 using StarterAssets;
 using UnityEngine;
+using UnityEngine.InputSystem.XR;
 
 
 [CreateAssetMenu]
-public class TPToEnemy : Forms
+public class TPToEnemy : Ability
 {
     public override void Activate(GameObject parent)
     {
-        Collider[] hitEnemies = Physics.OverlapSphere(parent.transform.position, range, enemyMask);
+        ThirdPersonController _controller = parent.GetComponent<ThirdPersonController>();
+        _controller.TPToNearestEnemy();
+        //parent.transform.position = Vector3.zero;
 
-        if (hitEnemies.Length > 0)
-        {
-            parent.GetComponent<ThirdPersonController>().TPToNearestEnemy(hitEnemies[0].gameObject);
-        }
     }
 
     public override void BeginCooldown(GameObject parent)

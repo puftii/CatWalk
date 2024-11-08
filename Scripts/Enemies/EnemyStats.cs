@@ -109,11 +109,7 @@ public class EnemyStats : MonoBehaviour, IDamagable
             GetStunned();
         }
 
-        if (damager != null) 
-        {
-            StartCoroutine(PushAway(0.3f, (transform.position - damager.transform.position) * 0.7f));
-            //transform.position += (transform.position - damager.transform.position) * 0.7f;     
-        }
+        
         if (healthText != null)
         {
             healthText.text = _currentHealth.ToString();
@@ -138,6 +134,13 @@ public class EnemyStats : MonoBehaviour, IDamagable
         {
             Die(damager);
             return;
+        } else
+        {
+            if (damager != null)
+            {
+                StartCoroutine(PushAway(0.2f, (transform.position - damager.transform.position) * 1f / Vector3.Distance(transform.position, damager.transform.position)));
+                //transform.position += (transform.position - damager.transform.position) * 0.7f;     
+            }
         }
     }
 

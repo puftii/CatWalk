@@ -17,7 +17,6 @@ public class EnemySpawner : MonoBehaviour
     private GameObject[] _enemies;
     private Vector3 _position;
     private int _totalEnemies;
-    private float _currentSpawnCooldown = 0;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -27,25 +26,7 @@ public class EnemySpawner : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        /*if(EnemyPrefab != null)
-        {
-            if(_totalEnemies < MaxEnemies && _currentSpawnCooldown <= 0)
-            {
-                RaycastHit hit;
-                _position = new Vector3(Random.Range(XRange.x, XRange.y), 300, Random.Range(YRange.x, YRange.y));
-                if (Physics.Raycast(_position, transform.TransformDirection(Vector3.down), out hit, 350, GroundLayers))
-                {
-                    Debug.Log("Hitted Ground at " + hit.transform.position);
-                    Instantiate(EnemyPrefab, hit.transform.position + Vector3.up, new Quaternion(0, Random.Range(0, 359), 0, 0));
-                    _totalEnemies++;
-                    _currentSpawnCooldown = SpawnCooldown;
-                }
-            }
-            if(_currentSpawnCooldown > 0)
-            {
-                _currentSpawnCooldown -= Time.deltaTime;
-            }
-        }*/
+
     }
 
 
