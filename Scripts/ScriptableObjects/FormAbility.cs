@@ -9,7 +9,7 @@ public class FormAbility : Forms
     public override void Activate(GameObject parent)
     {
         EventManager.OnPlayerWeaponHolstered(false);
-        parent.GetComponent<Animator>().SetTrigger("Tactical1");
+        parent.GetComponent<Animator>().SetTrigger("Slash");
         Time.timeScale = 0.3f;
         if (prefab != null)
         {
